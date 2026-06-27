@@ -33,7 +33,7 @@ _PATTERNS: list[tuple[EscalationTrigger, re.Pattern, str]] = [
         EscalationTrigger.CRISIS_SIGNAL,
         re.compile(
             r"\b(self[- ]?harm|suicid|kill\s+(my|him|her|them)self|end\s+(my|it\s+all)|"
-            r"don.?t\s+want\s+to\s+(live|be\s+here)|no\s+reason\s+to\s+live)\b",
+            r"don.?t\s+want\s+to\s+(live|be\s+here)|no\s+reason\s+to\s+live|hurt(ing)?\s+(my|him|her|them)self)\b",
             re.IGNORECASE,
         ),
         "Crisis signal detected. Immediate human escalation required.",
@@ -60,7 +60,7 @@ _PATTERNS: list[tuple[EscalationTrigger, re.Pattern, str]] = [
     (
         EscalationTrigger.DISCRIMINATION,
         re.compile(
-            r"\b(discriminat|racist|sexist|bias|prejudic|treat(ed|ing)\s+me\s+unfairly)\b",
+            r"\b(discriminat\w*|racist|sexist|bias\w*|prejudic\w*|treat(ed|ing)\s+me\s+unfairly)",
             re.IGNORECASE,
         ),
         "Customer alleged discriminatory treatment.",
