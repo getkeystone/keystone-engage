@@ -1,4 +1,4 @@
-.PHONY: run test eval lint fmt demo
+.PHONY: run test eval lint fmt corpus-stats
 
 run:
 	uv run uvicorn keystone_engage.api:app --host 0.0.0.0 --port 8100 --reload
@@ -15,6 +15,9 @@ lint:
 fmt:
 	uv run ruff format src/ tests/
 
-demo:
-	@echo "Keystone Engage demo mode - not yet implemented"
-	@echo "Will serve governed conversational agent at http://localhost:8100"
+corpus-stats:
+	@echo "Corpus files:"
+	@ls -la data/corpus/*.md 2>/dev/null || echo "  No corpus files found"
+	@echo ""
+	@echo "Eval cases:"
+	@wc -l data/eval/cases.jsonl 2>/dev/null || echo "  No eval cases found"

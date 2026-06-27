@@ -3,10 +3,6 @@
 The control-plane service that receives a request, checks authorization,
 manages dialog frame state, dispatches to the inference plane for model calls,
 records audit entries, and applies severity-tier HITL routing logic.
-
-This is the supervisor in the supervisor/orchestrator-worker topology.
-Pure orchestration by deliberate choice: legibility over resilience.
-The choreography option is a documented graduation path item (Stage 2.2).
 """
 
 from __future__ import annotations
@@ -22,24 +18,14 @@ from keystone_engage.models import (
     EngageResponse,
     SeverityTier,
 )
-from keystone_engage.observability import agent_span, get_tracer
+from keystone_engage.observability import agent_span, get_tracer, llm_span, record_token_usage
 from keystone_engage.rag import EngageRAG
 
 logger = logging.getLogger(__name__)
 
 
 class EngageOrchestrator:
-    """Orchestrator for governed conversational engagement.
-
-    Responsibilities:
-    1. Receive request, write opening audit entry
-    2. Check authorization (hard gate, not heuristic)
-    3. Manage dialog frame state (structured slots, not free-form context)
-    4. Dispatch to RAG pipeline (retrieval + inference)
-    5. Apply evidence gating (per-step, not post-hoc)
-    6. Route by severity tier (HITL when required)
-    7. Write closing audit entry with full provenance
-    """
+    """Orchestrator for governed conversational engagement."""
 
     def __init__(
         self,
@@ -58,15 +44,11 @@ class EngageOrchestrator:
         return self.sessions[session_id]
 
     async def handle(self, request: EngageRequest) -> EngageResponse:
-        """Handle an inbound engagement request.
-
-        Full orchestration loop: audit open, authz check, RAG call,
-        evidence gate, severity routing, audit close.
-        """
+        """Full orchestration loop: audit open, authz check, RAG call,
+        evidence gate, severity routing, audit close with cost."""
         tracer = get_tracer()
 
         with agent_span(tracer, "engage-orchestrator", request.session_id):
-            # 1. Audit: opening entry
             opening = self.audit.append(
                 event_type="request.received",
                 actor="orchestrator",
@@ -77,7 +59,6 @@ class EngageOrchestrator:
                 },
             )
 
-            # 2. Authorization check (fail-closed)
             authz = authorize_retrieval(
                 caller_role=request.caller_id or "public",
                 corpus_id="engage-default",
@@ -90,6 +71,7 @@ class EngageOrchestrator:
                     payload={
                         "session_id": request.session_id,
                         "reason": authz.reason,
+                        "decision_source": authz.decision_source,
                     },
                 )
                 return EngageResponse(
@@ -99,16 +81,13 @@ class EngageOrchestrator:
                     audit_hash=opening.curr_hash,
                 )
 
-            # 3. Dialog frame state
             frame = self._get_or_create_frame(request.session_id)
 
-            # 4. RAG pipeline (retrieval + generation)
             rag_response = await self.rag.retrieve_and_generate(
                 query=request.message,
                 corpus_id="engage-default",
             )
 
-            # 5. Evidence gating + severity routing
             if rag_response.fail_closed:
                 severity = SeverityTier.TIER_2
                 response_message = (
@@ -119,7 +98,15 @@ class EngageOrchestrator:
                 severity = SeverityTier.TIER_0
                 response_message = rag_response.answer
 
-            # 6. Audit: closing entry with provenance
+            if rag_response.input_tokens > 0:
+                with llm_span(tracer, rag_response.model_used) as span:
+                    record_token_usage(
+                        span,
+                        rag_response.input_tokens,
+                        rag_response.output_tokens,
+                    )
+                    span.set_attribute("keystone.latency_ms", rag_response.latency_ms)
+
             closing = self.audit.append(
                 event_type="response.generated",
                 actor="orchestrator",
@@ -130,6 +117,9 @@ class EngageOrchestrator:
                     "confidence": rag_response.confidence_score,
                     "fail_closed": rag_response.fail_closed,
                     "chunk_count": len(rag_response.retrieved_chunks),
+                    "input_tokens": rag_response.input_tokens,
+                    "output_tokens": rag_response.output_tokens,
+                    "latency_ms": round(rag_response.latency_ms, 1),
                 },
             )
 
@@ -143,6 +133,7 @@ class EngageOrchestrator:
                     {
                         "chunk_id": c.chunk_id,
                         "source": c.source_document,
+                        "section": c.section,
                         "score": c.similarity_score,
                     }
                     for c in rag_response.retrieved_chunks

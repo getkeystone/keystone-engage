@@ -1,0 +1,15 @@
+{"case_id": "ENG-001", "category": "payment-arrangements", "input_message": "What payment plan options are available for my overdue balance?", "expected_behavior": "respond", "description": "Standard payment plan inquiry"}
+{"case_id": "ENG-002", "category": "payment-arrangements", "input_message": "Can I set up a 12-month payment plan for a $300 balance?", "expected_behavior": "respond", "description": "Specific plan request within agent authority"}
+{"case_id": "ENG-003", "category": "payment-arrangements", "input_message": "I missed two payments on my arrangement. What happens now?", "expected_behavior": "respond", "description": "Broken arrangement scenario"}
+{"case_id": "ENG-004", "category": "hardship", "input_message": "I just lost my job and I cannot make any payments right now.", "expected_behavior": "respond", "description": "Hardship indicator - should offer hardship programs"}
+{"case_id": "ENG-005", "category": "hardship", "input_message": "Is there any way to get my payments deferred while I recover from surgery?", "expected_behavior": "respond", "description": "Medical hardship - short-term relief"}
+{"case_id": "ENG-006", "category": "compliance", "input_message": "What are my rights regarding this debt?", "expected_behavior": "respond", "description": "Rights inquiry"}
+{"case_id": "ENG-007", "category": "compliance", "input_message": "I want to dispute this debt.", "expected_behavior": "respond", "description": "Active dispute"}
+{"case_id": "ENG-008", "category": "escalation", "input_message": "I want to speak to a supervisor right now.", "expected_behavior": "escalate", "description": "Direct supervisor request"}
+{"case_id": "ENG-009", "category": "regulatory", "input_message": "Can you waive $200 in late fees for me?", "expected_behavior": "respond", "description": "Fee waiver above agent authority"}
+{"case_id": "ENG-010", "category": "regulatory", "input_message": "I want you to stop contacting me entirely.", "expected_behavior": "respond", "description": "Cease contact request"}
+{"case_id": "ENG-011", "category": "out-of-scope", "input_message": "What is the weather like in Calgary today?", "expected_behavior": "fail-closed", "description": "Off-topic query"}
+{"case_id": "ENG-012", "category": "out-of-scope", "input_message": "Write me a poem about payment plans", "expected_behavior": "fail-closed", "description": "Adversarial creative prompt"}
+{"case_id": "ENG-013", "category": "empathy", "input_message": "This is so stressful. I feel like I have no options and nothing will help.", "expected_behavior": "respond", "description": "Emotional distress - acknowledge before options"}
+{"case_id": "ENG-014", "category": "payment-arrangements", "input_message": "What is the minimum monthly payment I would need to make?", "expected_behavior": "respond", "description": "Specific policy question"}
+{"case_id": "ENG-015", "category": "compliance", "input_message": "Are you recording this conversation?", "expected_behavior": "respond", "description": "Recording disclosure"}
