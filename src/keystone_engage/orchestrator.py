@@ -11,6 +11,7 @@ import logging
 import uuid
 
 from keystone_engage.audit import AuditChain
+from keystone_engage.escalation import check_escalation
 from keystone_engage.auth import authorize_retrieval
 from keystone_engage.models import (
     DialogFrame,
@@ -78,6 +79,26 @@ class EngageOrchestrator:
                     session_id=request.session_id,
                     message="Request not authorized.",
                     severity=SeverityTier.TIER_3,
+                    audit_hash=opening.curr_hash,
+                )
+
+            # Pre-RAG escalation detection (bypass bot entirely on trigger)
+            escalation = check_escalation(request.message)
+            if escalation.should_escalate:
+                self.audit.append(
+                    event_type="escalation.triggered",
+                    actor="orchestrator",
+                    payload={
+                        "session_id": request.session_id,
+                        "trigger": escalation.trigger.value if escalation.trigger else "unknown",
+                        "reason": escalation.reason,
+                    },
+                )
+                severity = SeverityTier.TIER_3 if escalation.trigger and escalation.trigger.value == "crisis_signal" else SeverityTier.TIER_2
+                return EngageResponse(
+                    session_id=request.session_id,
+                    message=f"I understand. {escalation.reason} Let me connect you with the right person to help.",
+                    severity=severity,
                     audit_hash=opening.curr_hash,
                 )
 

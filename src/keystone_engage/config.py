@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     ollama_embed_model: str = "nomic-embed-text"
     corpus_dir: str = "data/corpus"
     retrieval_top_k: int = 5
-    confidence_threshold: float = 0.35
+    confidence_threshold: float = 0.55
     env: str = "development"
 
     model_config = {"env_prefix": "KEYSTONE_", "env_file": ".env", "extra": "ignore"}
