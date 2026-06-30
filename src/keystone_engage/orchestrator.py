@@ -1,8 +1,7 @@
 """Keystone Engage orchestrator.
 
-The control-plane service that receives a request, checks authorization,
-manages dialog frame state, dispatches to the inference plane for model calls,
-records audit entries, and applies severity-tier HITL routing logic.
+The control-plane service. Pre-RAG pipeline: escalation detection then
+intent classification. Both bypass the LLM entirely when triggered.
 """
 
 from __future__ import annotations
@@ -11,8 +10,9 @@ import logging
 import uuid
 
 from keystone_engage.audit import AuditChain
-from keystone_engage.escalation import check_escalation
 from keystone_engage.auth import authorize_retrieval
+from keystone_engage.escalation import check_escalation
+from keystone_engage.intent import check_intent
 from keystone_engage.models import (
     DialogFrame,
     EngageRequest,
@@ -26,7 +26,17 @@ logger = logging.getLogger(__name__)
 
 
 class EngageOrchestrator:
-    """Orchestrator for governed conversational engagement."""
+    """Orchestrator for governed conversational engagement.
+
+    Pre-RAG pipeline order:
+    1. Audit open
+    2. Authorization check (hard gate)
+    3. Escalation detection (crisis, supervisor, legal, discrimination)
+    4. Intent classification (creative, general knowledge, entertainment)
+    5. RAG retrieval + generation
+    6. Evidence gating + severity routing
+    7. Audit close with cost
+    """
 
     def __init__(
         self,
@@ -45,11 +55,10 @@ class EngageOrchestrator:
         return self.sessions[session_id]
 
     async def handle(self, request: EngageRequest) -> EngageResponse:
-        """Full orchestration loop: audit open, authz check, RAG call,
-        evidence gate, severity routing, audit close with cost."""
         tracer = get_tracer()
 
         with agent_span(tracer, "engage-orchestrator", request.session_id):
+            # 1. Audit open
             opening = self.audit.append(
                 event_type="request.received",
                 actor="orchestrator",
@@ -60,11 +69,11 @@ class EngageOrchestrator:
                 },
             )
 
+            # 2. Authorization check (fail-closed)
             authz = authorize_retrieval(
                 caller_role=request.caller_id or "public",
                 corpus_id="engage-default",
             )
-
             if not authz.allowed:
                 self.audit.append(
                     event_type="authorization.denied",
@@ -82,7 +91,7 @@ class EngageOrchestrator:
                     audit_hash=opening.curr_hash,
                 )
 
-            # Pre-RAG escalation detection (bypass bot entirely on trigger)
+            # 3. Escalation detection (bypasses RAG entirely)
             escalation = check_escalation(request.message)
             if escalation.should_escalate:
                 self.audit.append(
@@ -94,7 +103,11 @@ class EngageOrchestrator:
                         "reason": escalation.reason,
                     },
                 )
-                severity = SeverityTier.TIER_3 if escalation.trigger and escalation.trigger.value == "crisis_signal" else SeverityTier.TIER_2
+                severity = (
+                    SeverityTier.TIER_3
+                    if escalation.trigger and escalation.trigger.value == "crisis_signal"
+                    else SeverityTier.TIER_2
+                )
                 return EngageResponse(
                     session_id=request.session_id,
                     message=f"I understand. {escalation.reason} Let me connect you with the right person to help.",
@@ -102,13 +115,38 @@ class EngageOrchestrator:
                     audit_hash=opening.curr_hash,
                 )
 
+            # 4. Intent classification (bypasses RAG for off-topic)
+            intent = check_intent(request.message)
+            if intent.is_off_topic:
+                self.audit.append(
+                    event_type="intent.off_topic",
+                    actor="orchestrator",
+                    payload={
+                        "session_id": request.session_id,
+                        "reason": intent.reason,
+                    },
+                )
+                return EngageResponse(
+                    session_id=request.session_id,
+                    message=(
+                        "I can only help with account-related questions such as "
+                        "payment arrangements, hardship programs, and account inquiries. "
+                        "How can I assist you with your account today?"
+                    ),
+                    severity=SeverityTier.TIER_2,
+                    audit_hash=opening.curr_hash,
+                )
+
+            # 5. Dialog frame state
             frame = self._get_or_create_frame(request.session_id)
 
+            # 6. RAG pipeline
             rag_response = await self.rag.retrieve_and_generate(
                 query=request.message,
                 corpus_id="engage-default",
             )
 
+            # 7. Evidence gating + severity routing
             if rag_response.fail_closed:
                 severity = SeverityTier.TIER_2
                 response_message = (
@@ -128,6 +166,7 @@ class EngageOrchestrator:
                     )
                     span.set_attribute("keystone.latency_ms", rag_response.latency_ms)
 
+            # 8. Audit close with cost
             closing = self.audit.append(
                 event_type="response.generated",
                 actor="orchestrator",
