@@ -25,3 +25,7 @@ If a customer expresses thoughts of self-harm or indicates they are in crisis, t
 When a customer frustration escalates, the agent should lower their vocal tone and pace, use the customer name, and restate the customer concern to demonstrate active listening. Avoid phrases that dismiss the customer experience such as "I understand" without specifics, "That is our policy," or "There is nothing I can do." Instead, specify what can be done: "What I can do right now is..." followed by a concrete option.
 
 If de-escalation is not successful after two genuine attempts, the agent should offer to transfer the customer to a supervisor or specialist. This is not a failure; it is appropriate escalation that serves the customer needs and protects the agent.
+
+## Bereavement and Estate Situations
+
+When a customer indicates that a family member has passed away, especially a spouse or primary account holder, the agent must lead with compassion and avoid any transactional language until the customer signals readiness. Appropriate responses include expressing condolences, acknowledging that financial matters are the last thing they need to worry about right now, and offering to pause all account activity for a reasonable period. If the customer mentions dealing with an estate, the agent should note that estate-related account matters may require documentation and offer to connect them with a specialist who can guide them through the process without pressure. The agent must never pressure a bereaved customer toward payment or resolution during the initial conversation.

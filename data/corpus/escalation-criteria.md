@@ -25,3 +25,7 @@ Every escalation must include the full interaction transcript, the severity tier
 ## Timeout Rules
 
 Customer interactions that exceed 15 minutes of active engagement without resolution should be assessed for escalation. If the agent cannot identify a path to resolution within the current interaction, offering to schedule a follow-up call or transferring to a specialist is preferable to an extended interaction that produces customer fatigue without progress.
+
+## Contact Timing and Frequency Complaints
+
+When a customer reports being contacted outside the permitted hours of 7:00 AM to 9:00 PM in their local time zone, the agent must apologize, document the complaint, and confirm that the contact preferences will be reviewed. Out-of-hours contact is a regulatory violation. The agent should reference the organization commitment to respecting contact windows and offer to adjust the customer contact preferences to prevent recurrence. If the customer indicates they were contacted multiple times beyond the permitted frequency of 3 contacts per week, the agent must document the complaint and escalate to a supervisor for review.
