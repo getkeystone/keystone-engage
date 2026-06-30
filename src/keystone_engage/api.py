@@ -1,7 +1,9 @@
 """FastAPI application for Keystone Engage.
 
-On startup, loads behavioral content corpus, embeds chunks, and registers
-default authorization scopes. Falls back gracefully if Ollama is unreachable.
+On startup, loads behavioral content corpus and indexes embeddings.
+Uses pgvector on AnchorNode if DATABASE_URL is configured, otherwise
+falls back to in-memory vector store. Skips re-embedding if chunks
+are already indexed in pgvector.
 """
 
 from __future__ import annotations
@@ -34,12 +36,36 @@ def _register_default_policies() -> None:
     logger.info("Registered default retrieval scopes")
 
 
-async def _load_and_index_corpus(rag: EngageRAG) -> None:
+def _create_vectorstore():
+    """Create pgvector store if DATABASE_URL is set, otherwise in-memory."""
+    settings = get_settings()
+    if settings.database_url:
+        try:
+            from keystone_engage.pgvectorstore import PgVectorStore
+            store = PgVectorStore(settings.database_url)
+            logger.info("Using PgVectorStore on AnchorNode")
+            return store
+        except Exception as e:
+            logger.warning("PgVectorStore failed (%s), falling back to in-memory", e)
+    logger.info("Using InMemoryVectorStore")
+    return InMemoryVectorStore()
+
+
+async def _load_and_index_corpus(rag: EngageRAG, store_is_pg: bool) -> None:
     settings = get_settings()
     chunks = load_corpus(settings.corpus_dir)
 
     if not chunks:
         logger.warning("No corpus chunks loaded. RAG will operate in stub mode.")
+        return
+
+    # If pgvector and chunks already indexed, skip embedding
+    if store_is_pg and rag.vectorstore.size > 0:
+        logger.info(
+            "PgVectorStore already has %d chunks. Skipping re-embedding.",
+            rag.vectorstore.size,
+        )
+        rag.mark_ready()
         return
 
     logger.info("Embedding %d chunks (this may take a moment)...", len(chunks))
@@ -58,7 +84,7 @@ async def _load_and_index_corpus(rag: EngageRAG) -> None:
     except Exception as e:
         logger.warning(
             "Failed to embed corpus (Ollama unreachable?): %s. "
-            "RAG will operate in stub mode. Set KEYSTONE_OLLAMA_BASE_URL in .env.",
+            "RAG will operate in stub mode.",
             e,
         )
 
@@ -67,10 +93,14 @@ async def _load_and_index_corpus(rag: EngageRAG) -> None:
 async def lifespan(app: FastAPI):
     global _orchestrator
     _register_default_policies()
-    vectorstore = InMemoryVectorStore()
+
+    vectorstore = _create_vectorstore()
+    store_is_pg = not isinstance(vectorstore, InMemoryVectorStore)
+
     rag = EngageRAG(vectorstore=vectorstore)
-    await _load_and_index_corpus(rag)
+    await _load_and_index_corpus(rag, store_is_pg)
     _orchestrator = EngageOrchestrator(rag=rag)
+
     logger.info("Keystone Engage v%s ready", __version__)
     yield
     logger.info("Keystone Engage shutting down")

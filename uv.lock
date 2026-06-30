@@ -580,6 +580,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "mcp" },
+    { name = "numpy" },
     { name = "openai" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp" },
@@ -612,6 +613,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.110" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "mcp", specifier = ">=1.0" },
+    { name = "numpy", specifier = ">=2.4.6" },
     { name = "openai", specifier = ">=1.0" },
     { name = "opentelemetry-api", specifier = ">=1.20" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.20" },

@@ -16,11 +16,11 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 5
     confidence_threshold: float = 0.55
     env: str = "development"
+    database_url: str = ""  # postgresql://user:pass@host:5432/db (empty = in-memory)
 
     model_config = {"env_prefix": "KEYSTONE_", "env_file": ".env", "extra": "ignore"}
 
 
-# Module-level singleton
 _settings: Settings | None = None
 
 
