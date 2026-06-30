@@ -22,7 +22,8 @@ class IntentResult:
 
 
 _CREATIVE_PATTERNS = re.compile(
-    r"\b(write\s+(me\s+)?(a\s+)?(poem|story|song|essay|letter|haiku|limerick|joke|script|code|email|resume|cv)|"
+    r"\b(write\s+(me\s+)?(a\s+)?(\w+\s+)?(poem|story|song|essay|letter|haiku|limerick|joke|script|code|email|resume|cv)|"
+    r"help\s+(me\s+)?(write|create|compose|draft|make)\s+(a\s+)?(\w+\s+)?(poem|story|song|essay|letter|email|resume|cv)|"
     r"compose\s+(a\s+)?(poem|song|melody|story)|"
     r"create\s+(a\s+)?(poem|story|song|fictional|creative)|"
     r"tell\s+(me\s+)?(a\s+)?(joke|story|riddle)|"

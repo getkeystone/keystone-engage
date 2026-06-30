@@ -65,6 +65,17 @@ _PATTERNS: list[tuple[EscalationTrigger, re.Pattern, str]] = [
         ),
         "Customer alleged discriminatory treatment.",
     ),
+    (
+        EscalationTrigger.LEGAL_MENTION,
+        re.compile(
+            r"\b(file\s+(a\s+)?complaint|report\s+(you|this)\s+to|"
+            r"consumer\s+protection|regulatory\s+(complaint|authority|body)|"
+            r"going\s+to\s+(report|complain)|better\s+business\s+bureau|"
+            r"ombudsman)\b",
+            re.IGNORECASE,
+        ),
+        "Customer referenced regulatory complaint or consumer protection.",
+    ),
 ]
 
 
