@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     ollama_embed_model: str = "nomic-embed-text"
     corpus_dir: str = "data/corpus"
     retrieval_top_k: int = 5
-    confidence_threshold: float = 0.55
+    confidence_threshold: float = 0.50
     env: str = "development"
     database_url: str = ""  # postgresql://user:pass@host:5432/db (empty = in-memory)
 
