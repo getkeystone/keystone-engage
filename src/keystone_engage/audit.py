@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from keystone_engage.models import AuditEntry
+from keystone_engage.substrate.models import AuditSubstrateFields
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,11 @@ class AuditChain:
 
     Writes JSONL to a local file. In production, writes to AnchorNode (PostgreSQL)
     and archives to DataHarbor. The chain is the same format used by keystone-core.
+
+    The substrate parameter is accepted for interface compatibility with PgAuditChain
+    but is not written to dedicated columns (JSONL has no columns). The orchestrator
+    already puts substrate-relevant data into the payload dict, so the JSONL record
+    is complete without separate substrate fields.
     """
 
     def __init__(self, ledger_path: Path | str = "data/audit/ledger.jsonl") -> None:
@@ -54,6 +60,7 @@ class AuditChain:
         event_type: str,
         actor: str,
         payload: dict[str, Any] | None = None,
+        substrate: AuditSubstrateFields | None = None,
     ) -> AuditEntry:
         """Append a hash-chained entry to the audit ledger."""
         entry = AuditEntry(

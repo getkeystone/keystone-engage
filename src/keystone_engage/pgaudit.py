@@ -2,6 +2,10 @@
 
 Same interface as AuditChain (JSONL). Hash-chained, append-only, tamper-evident.
 Persists to AnchorNode. Falls back to JSONL if database is unavailable.
+
+Substrate columns (agent_id, tempo, task_id, cost fields) are written as
+dedicated columns for queryability. The payload column continues to hold the
+full event data for hash chain integrity.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ import psycopg2
 import psycopg2.extras
 
 from keystone_engage.models import AuditEntry
+from keystone_engage.substrate.models import AuditSubstrateFields
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +64,14 @@ class PgAuditChain:
         event_type: str,
         actor: str,
         payload: dict[str, Any] | None = None,
+        substrate: AuditSubstrateFields | None = None,
     ) -> AuditEntry:
-        """Append a hash-chained entry to the audit ledger in PostgreSQL."""
+        """Append a hash-chained entry to the audit ledger in PostgreSQL.
+
+        If substrate is provided, dedicated columns are populated for
+        queryability. The payload column holds the full event data
+        regardless.
+        """
         entry = AuditEntry(
             timestamp=datetime.now(timezone.utc),
             event_type=event_type,
@@ -72,19 +83,49 @@ class PgAuditChain:
 
         with self._conn() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    """INSERT INTO audit_entries
-                       (timestamp, event_type, actor, payload, prev_hash, curr_hash)
-                       VALUES (%s, %s, %s, %s, %s, %s)""",
-                    (
-                        entry.timestamp,
-                        entry.event_type,
-                        entry.actor,
-                        json.dumps(entry.payload),
-                        entry.prev_hash,
-                        entry.curr_hash,
-                    ),
-                )
+                if substrate:
+                    cur.execute(
+                        """INSERT INTO audit_entries
+                           (timestamp, event_type, actor, payload, prev_hash, curr_hash,
+                            agent_id, tempo, task_id,
+                            input_tokens, output_tokens, model_used,
+                            cost_cents, latency_ms, session_rolling_cost_cents)
+                           VALUES (%s, %s, %s, %s, %s, %s,
+                                   %s, %s, %s,
+                                   %s, %s, %s,
+                                   %s, %s, %s)""",
+                        (
+                            entry.timestamp,
+                            entry.event_type,
+                            entry.actor,
+                            json.dumps(entry.payload),
+                            entry.prev_hash,
+                            entry.curr_hash,
+                            substrate.agent_id,
+                            substrate.tempo.value,
+                            str(substrate.task_id) if substrate.task_id else None,
+                            substrate.input_tokens,
+                            substrate.output_tokens,
+                            substrate.model_used,
+                            float(substrate.cost_cents) if substrate.cost_cents is not None else None,
+                            substrate.latency_ms,
+                            float(substrate.session_rolling_cost_cents) if substrate.session_rolling_cost_cents is not None else None,
+                        ),
+                    )
+                else:
+                    cur.execute(
+                        """INSERT INTO audit_entries
+                           (timestamp, event_type, actor, payload, prev_hash, curr_hash)
+                           VALUES (%s, %s, %s, %s, %s, %s)""",
+                        (
+                            entry.timestamp,
+                            entry.event_type,
+                            entry.actor,
+                            json.dumps(entry.payload),
+                            entry.prev_hash,
+                            entry.curr_hash,
+                        ),
+                    )
 
         logger.debug("PgAudit: %s by %s -> %s", event_type, actor, entry.curr_hash[:12])
         return entry

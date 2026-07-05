@@ -1,7 +1,7 @@
 """FastAPI application for Keystone Engage.
 
 On startup: register auth scopes, choose vectorstore and audit backend
-based on config, load corpus, index embeddings.
+based on config, load corpus, index embeddings, wire substrate stores.
 """
 
 from __future__ import annotations
@@ -63,6 +63,24 @@ def _create_audit():
     return AuditChain()
 
 
+def _create_task_store():
+    """Create TaskStore if database is available.
+
+    Returns None if database_url is empty or connection fails.
+    The orchestrator operates without task persistence in that case.
+    """
+    settings = get_settings()
+    if settings.database_url:
+        try:
+            from keystone_engage.substrate.store import TaskStore
+            store = TaskStore(settings.database_url)
+            logger.info("Using TaskStore on AnchorNode")
+            return store
+        except Exception as e:
+            logger.warning("TaskStore failed (%s), tasks will not be persisted", e)
+    return None
+
+
 async def _load_and_index_corpus(rag: EngageRAG, store_is_pg: bool) -> None:
     settings = get_settings()
     chunks = load_corpus(settings.corpus_dir)
@@ -107,10 +125,11 @@ async def lifespan(app: FastAPI):
     store_is_pg = not isinstance(vectorstore, InMemoryVectorStore)
 
     audit = _create_audit()
+    task_store = _create_task_store()
 
     rag = EngageRAG(vectorstore=vectorstore)
     await _load_and_index_corpus(rag, store_is_pg)
-    _orchestrator = EngageOrchestrator(audit=audit, rag=rag)
+    _orchestrator = EngageOrchestrator(audit=audit, rag=rag, task_store=task_store)
 
     logger.info("Keystone Engage v%s ready", __version__)
     yield
