@@ -16,6 +16,7 @@ from decimal import Decimal
 
 from keystone_engage.audit import AuditChain
 from keystone_engage.auth import authorize_retrieval
+from keystone_engage.empathy import check_empathy
 from keystone_engage.escalation import check_escalation
 from keystone_engage.intent import check_intent
 from keystone_engage.models import (
@@ -216,6 +217,26 @@ class EngageOrchestrator:
                         "How can I assist you with your account today?"
                     ),
                     severity=SeverityTier.TIER_2,
+                    audit_hash=opening.curr_hash,
+                )
+
+            # 4.5 Empathy detection (distress without concrete question)
+            empathy = check_empathy(request.message)
+            if empathy.is_distress:
+                self.audit.append(
+                    event_type="empathy.acknowledged",
+                    actor="orchestrator",
+                    payload={
+                        "session_id": request.session_id,
+                        "reason": empathy.reason,
+                    },
+                    substrate=self._make_substrate(task_id=task_id),
+                )
+                self._complete_task(task_id, TaskState.COMPLETED)
+                return EngageResponse(
+                    session_id=request.session_id,
+                    message=empathy.response,
+                    severity=SeverityTier.TIER_0,
                     audit_hash=opening.curr_hash,
                 )
 

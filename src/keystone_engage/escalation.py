@@ -41,9 +41,9 @@ _PATTERNS: list[tuple[EscalationTrigger, re.Pattern, str]] = [
     (
         EscalationTrigger.SUPERVISOR_REQUEST,
         re.compile(
-            r"\b(speak\s+to\s+a?\s*(supervisor|manager|human|person|someone\s+else)|"
+            r"\b(speak\s+(to|with)\s+(a|your|my)?\s*(supervisor|manager|human|person|someone\s+else)|"
             r"transfer\s+me|escalate|talk\s+to\s+(a\s+)?(real|actual)\s+(person|human)|"
-            r"let\s+me\s+speak\s+to|get\s+me\s+(a\s+)?(supervisor|manager))\b",
+            r"let\s+me\s+speak\s+(to|with)|get\s+me\s+(a\s+)?(supervisor|manager))\b",
             re.IGNORECASE,
         ),
         "Customer requested supervisor or human agent.",
