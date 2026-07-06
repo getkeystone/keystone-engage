@@ -148,6 +148,7 @@ class EngageOrchestrator:
             authz = authorize_retrieval(
                 caller_role=request.caller_id or "public",
                 corpus_id="engage-default",
+                agent_identity=V1_ENGAGEMENT_AGENT_ID,
             )
             if not authz.allowed:
                 self.audit.append(

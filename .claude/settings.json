@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/keystone_engage/orchestrator.py'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
+      "Bash(make test *)"
+    ]
+  }
+}
