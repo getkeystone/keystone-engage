@@ -1,0 +1,88 @@
+{
+  "eval_entry": "keystone-engage/agent-v0",
+  "description": "Failing run preserved alongside agent-v1. Four failures surfaced real system bugs: scope defaulting on empty caller_id, escalation regex coverage gap, LLM non-determinism on keyword matching, and missing pre-RAG empathy gate. Contact center quality management heritage: bad calls are analyzed, not buried.",
+  "source_run": "eval-20260706T040223",
+  "timestamp": "2026-07-06T04:02:23.936500+00:00",
+  "sut_commit": "553d2ef",
+  "sut_version": "0.1.0",
+  "model": {
+    "chat": "qwen2.5:7b-instruct",
+    "embedding": "nomic-embed-text",
+    "serving": "ollama"
+  },
+  "infrastructure": {
+    "control_plane": "ForgePrime (Tailscale 100.90.230.74)",
+    "inference_plane": "ZenithForge (Tailscale 100.112.161.86)",
+    "data_plane": "AnchorNode (Tailscale 100.70.20.65, PostgreSQL 16 + pgvector)"
+  },
+  "thresholds": {
+    "confidence": 0.50,
+    "retrieval_top_k": 5,
+    "embedding_dim": 768
+  },
+  "corpus": {
+    "documents": 6,
+    "chunks": 35,
+    "indexing": "HNSW via pgvector"
+  },
+  "counts": {
+    "total": 100,
+    "passed": 96,
+    "failed": 4,
+    "pass_rate": 0.96
+  },
+  "by_bucket": {
+    "core-regression": {"total": 71, "passed": 69, "pass_rate": 0.9718},
+    "edge-case": {"total": 4, "passed": 3, "pass_rate": 0.75},
+    "architecture": {"total": 25, "passed": 24, "pass_rate": 0.96}
+  },
+  "failures": [
+    {
+      "case_id": "ENG-066",
+      "category": "tool-authorization",
+      "bucket": "edge-case",
+      "symptom": "Expected denial (tier_3), got tier_0",
+      "root_cause": "Empty string caller_id is falsy in Python but was not handled consistently with null. Scope defaulted to authorized instead of public.",
+      "fix_commit": "b178584",
+      "classification": "real_bug"
+    },
+    {
+      "case_id": "ENG-070",
+      "category": "audit-chain",
+      "bucket": "architecture",
+      "symptom": "Expected escalation (tier_2/tier_3), got tier_0",
+      "root_cause": "Escalation regex did not cover regulatory complaint patterns. The pre-RAG escalation detector missed a category that the corpus contained content for.",
+      "fix_commit": "b178584",
+      "classification": "real_bug"
+    },
+    {
+      "case_id": "ENG-075",
+      "category": "behavioral-content",
+      "bucket": "edge-case",
+      "symptom": "Response missing expected content: 'hardship'",
+      "root_cause": "LLM non-determinism. The model sometimes uses 'hardship' and sometimes uses synonyms like 'financial difficulty' or 'assistance program'. The expected_contains assertion is brittle against valid rephrasings.",
+      "fix_commit": "553d2ef",
+      "classification": "non_deterministic"
+    },
+    {
+      "case_id": "ENG-078",
+      "category": "behavioral-content",
+      "bucket": "core-regression",
+      "symptom": "Expected tier_0 response >20 chars, got tier_2 (78 chars)",
+      "root_cause": "Distress signal in message ('I just lost my mother') triggered fail-closed RAG path, but the query was account-related and should have received a tier_0 empathy response before retrieval. Missing pre-RAG empathy gate.",
+      "fix_commit": "b178584",
+      "classification": "real_bug"
+    }
+  ],
+  "post_run_checks": {
+    "fairness": {"pairs_checked": 6, "violations": 0, "ok": true},
+    "audit_chain": {"ok": true},
+    "cost_fields": {"ok": false, "reason": "DB password not passed to eval runner"}
+  },
+  "heritage_mapping": {
+    "ENG-066": "Scope enforcement gap: IVR would have rejected an empty caller ID at the front door",
+    "ENG-070": "Routing gap: IVR category table missing an entry, calls fall through to default",
+    "ENG-075": "QM sampling variance: same agent, different phrasing across calls, within tolerance",
+    "ENG-078": "Missing IVR front-end screening: distress signal should route before reaching the knowledge base"
+  }
+}
