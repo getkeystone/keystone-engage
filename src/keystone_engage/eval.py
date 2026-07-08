@@ -49,6 +49,7 @@ class EvalCase:
     bucket: str = "core-regression"
     expected_contains: list[str] = field(default_factory=list)
     expected_absent: list[str] = field(default_factory=list)
+    expected_contains_any: list[str] = field(default_factory=list)
     pair_id: str | None = None
 
 
@@ -160,6 +161,9 @@ def judge_result(case: EvalCase, response: dict) -> EvalResult:
     if missing:
         content_ok = False
         details = _join(details, f"Missing expected_contains: {missing}")
+    if case.expected_contains_any and not any(s.lower() in msg_lower for s in case.expected_contains_any):
+        content_ok = False
+        details = _join(details, f"Missing expected_contains_any (need at least one): {case.expected_contains_any}")
     if forbidden:
         content_ok = False
         details = _join(details, f"Present expected_absent: {forbidden}")
