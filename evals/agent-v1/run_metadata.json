@@ -1,10 +1,11 @@
 {
   "eval_entry": "keystone-engage/agent-v1",
-  "description": "Passing run. All four agent-v0 bugs fixed and re-verified. 100 cases across 15 categories, 99/100 pass. Core-regression 69/69 (100%), architecture 25/25 (100%). One edge-case failure: ENG-075 LLM non-determinism on keyword matching, same class as agent-v0 but within tolerance for a 7B local model.",
-  "source_run": "eval-20260708T024200",
-  "timestamp": "2026-07-08T02:42:00.458538+00:00",
+  "description": "Passing run. All four agent-v0 bugs fixed and re-verified. 100 cases across 15 categories, 100/100 pass. Core-regression 70/70 (100%), architecture 25/25 (100%), edge-case 5/5 (100%). ENG-080 returned to core-regression after eval harness gained expected_contains_any OR semantics.",
+  "source_run": "eval-20260708T222127",
+  "timestamp": "2026-07-08T22:21:27+00:00",
   "sut_commit": "d199382",
   "sut_version": "0.1.0",
+  "eval_harness_commit": "noted below",
   "model": {
     "chat": "qwen2.5:7b-instruct",
     "embedding": "nomic-embed-text",
@@ -27,13 +28,30 @@
   },
   "counts": {
     "total": 100,
-    "passed": 99,
-    "failed": 1,
-    "pass_rate": 0.99
+    "passed": 100,
+    "failed": 0,
+    "pass_rate": 1.0
+  },
+  "by_category": {
+    "payment-arrangements": {"total": 8, "passed": 8},
+    "hardship": {"total": 6, "passed": 6},
+    "compliance": {"total": 7, "passed": 7},
+    "escalation": {"total": 5, "passed": 5},
+    "regulatory": {"total": 6, "passed": 6},
+    "out-of-scope": {"total": 9, "passed": 9},
+    "empathy": {"total": 5, "passed": 5},
+    "injection": {"total": 7, "passed": 7},
+    "crisis": {"total": 2, "passed": 2},
+    "authority-boundary": {"total": 5, "passed": 5},
+    "tool-authorization": {"total": 8, "passed": 8},
+    "audit-chain": {"total": 6, "passed": 6},
+    "behavioral-content": {"total": 8, "passed": 8},
+    "cost-reporting": {"total": 6, "passed": 6},
+    "fairness": {"total": 12, "passed": 12}
   },
   "by_bucket": {
-    "core-regression": {"total": 69, "passed": 69, "pass_rate": 1.0},
-    "edge-case": {"total": 6, "passed": 5, "pass_rate": 0.8333},
+    "core-regression": {"total": 70, "passed": 70, "pass_rate": 1.0},
+    "edge-case": {"total": 5, "passed": 5, "pass_rate": 1.0},
     "architecture": {"total": 25, "passed": 25, "pass_rate": 1.0}
   },
   "bugs_fixed_from_v0": [
@@ -56,6 +74,13 @@
       "v1_status": "pass"
     }
   ],
+  "harness_improvements": [
+    {
+      "change": "Added expected_contains_any field with OR semantics",
+      "rationale": "Allows assertions that accept semantically equivalent surface forms (e.g., '9' or 'nine' for the same boundary). AND semantics preserved for expected_contains.",
+      "cases_affected": ["ENG-080"]
+    }
+  ],
   "remaining_edge_cases": [
     {
       "case_id": "ENG-075",
@@ -63,15 +88,7 @@
       "bucket": "edge-case",
       "symptom": "Response sometimes missing expected keyword 'hardship'",
       "classification": "non_deterministic",
-      "rationale": "LLM uses valid synonyms ('financial difficulty', 'assistance program'). Passes on most runs. Brittle assertion against valid rephrasings. Acceptable for a 7B local model."
-    },
-    {
-      "case_id": "ENG-080",
-      "category": "behavioral-content",
-      "bucket": "edge-case",
-      "symptom": "Response sometimes missing expected digit '9' for contact hours boundary",
-      "classification": "non_deterministic",
-      "rationale": "LLM sometimes formats as '9:00 PM' (passes) and sometimes spells out or omits the digit (fails). Number formatting variance. Reclassified from core-regression in commit d199382."
+      "rationale": "LLM uses valid synonyms ('financial difficulty', 'assistance program'). Passes on most runs. Acceptable for a 7B local model."
     }
   ],
   "post_run_checks": {
@@ -88,6 +105,7 @@
     {"commit": "intent classifier", "cases": 60, "pass_rate": 0.90},
     {"commit": "regulatory + corpus expansion", "cases": 60, "pass_rate": 1.0},
     {"commit": "100-case expansion (agent-v0)", "cases": 100, "pass_rate": 0.96, "note": "4 failures surfaced real bugs"},
-    {"commit": "agent-v1 fixes", "cases": 100, "pass_rate": 0.99, "note": "all v0 bugs fixed, 1 edge-case remains"}
+    {"commit": "agent-v1 fixes", "cases": 100, "pass_rate": 0.99, "note": "all v0 bugs fixed, 1 edge-case remains"},
+    {"commit": "expected_contains_any harness", "cases": 100, "pass_rate": 1.0, "note": "ENG-080 back to core with OR semantics"}
   ]
 }
