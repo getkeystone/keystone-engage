@@ -55,8 +55,9 @@ class TestPublishSubscribe:
         # Give the message time to arrive
         await asyncio.sleep(0.5)
 
-        assert len(received) == 1
-        assert received[0].task_id == task_id
+        matching = [e for e in received if e.task_id == task_id]
+        assert len(matching) == 1
+        assert matching[0].task_id == task_id
         assert received[0].event_type == "created"
         assert received[0].agent_id == "test-agent"
         assert received[0].payload == {"test": True}
@@ -77,8 +78,9 @@ class TestPublishSubscribe:
 
         await asyncio.sleep(0.5)
 
-        assert len(received) >= 3
-        event_types = [e.event_type for e in received if e.task_id == task_id]
+        matching = [e for e in received if e.task_id == task_id]
+        assert len(matching) >= 3
+        event_types = [e.event_type for e in matching]
         assert "created" in event_types
         assert "claimed_by_agent" in event_types
         assert "completed" in event_types

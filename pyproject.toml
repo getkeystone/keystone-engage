@@ -41,6 +41,7 @@ packages = ["src/keystone_engage"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["integration: requires live NATS on TrustNode"]
+addopts = '-m "not integration"'
 pythonpath = ["src"]
 
 [tool.ruff]
