@@ -43,7 +43,8 @@ class TestSubstrateModels:
     def test_task_state_enum_values(self):
         from keystone_engage.substrate import TaskState
 
-        assert set(s.value for s in TaskState) == {"created", "in_progress", "completed", "failed"}
+        expected = {"created", "claimed_by_agent", "in_progress", "stuck", "rescheduled", "completed", "completed_verified", "failed", "failed_unrecoverable"}
+        assert set(s.value for s in TaskState) == expected
 
     def test_cost_profile_valid(self):
         from keystone_engage.substrate import CostProfile

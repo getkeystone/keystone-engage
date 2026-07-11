@@ -1,20 +1,23 @@
 """
 Day-one substrate models for keystone-engage.
 
-The substrate carries four dimensions across every audit entry, every OTel
-span, and every dispatch call: agent identity, tempo, task state, cost.
-v1 populates them with constants for one agent. v2 populates them for many.
+Four dimensions across every audit entry, every OTel span, and every
+dispatch call: agent identity, tempo, task state, cost.
 
-Contact center heritage: this is the schema shape a multi-engine contact
-center would have had if it had been designed as one platform instead of
-federated engines.
+v1 populates them with constants for one agent. v2 populates for many.
 
-  - Agent identity is which routing engine handled the interaction.
-  - Tempo is the SLA class (IVR sub-second, human agent seconds, WFM minutes+).
-  - Task state is the disposition machine.
-  - Cost is the per-interaction rate rolled up per session.
+v2 task state machine expands the lifecycle for multi-agent operation:
+  claimed_by_agent    : an agent accepted the task
+  stuck               : no heartbeat received within threshold
+  rescheduled         : takeover happened, new agent assigned
+  completed_verified  : output verified by another agent
+  failed_unrecoverable: retry exhausted or verification failed
 
-The schema supports many agents. v1 populates one.
+Contact center heritage:
+  agent identity = which routing engine handled the interaction
+  tempo          = SLA class (IVR sub-second, human agent seconds, WFM hours)
+  task state     = disposition machine (full lifecycle with transfers)
+  cost           = per-interaction rate rolled up per session
 """
 
 from datetime import datetime
@@ -44,15 +47,88 @@ class AgentTempo(str, Enum):
 class TaskState(str, Enum):
     """Task lifecycle state.
 
-    v1 uses the minimal machine. v2 expands with claimed_by_agent,
-    in_progress_with_heartbeat, stuck, rescheduled, completed_verified,
-    failed_unrecoverable. See keystone-future-architecture Concept 6.
+    v1 minimal: created, in_progress, completed, failed.
+    v2 multi-agent: adds claim, heartbeat-aware stuck detection,
+    takeover via rescheduling, verification, and unrecoverable failure.
+
+    Contact center heritage:
+      created             = call entered queue
+      claimed_by_agent    = agent accepted the call
+      in_progress         = agent actively handling (with heartbeat)
+      stuck               = agent went silent (no heartbeat)
+      rescheduled         = call transferred to another agent
+      completed           = agent finished, pending verification
+      completed_verified  = supervisor reviewed and approved
+      failed              = retriable failure
+      failed_unrecoverable = dead letter, human review required
     """
 
     CREATED = "created"
+    CLAIMED_BY_AGENT = "claimed_by_agent"
     IN_PROGRESS = "in_progress"
+    STUCK = "stuck"
+    RESCHEDULED = "rescheduled"
     COMPLETED = "completed"
+    COMPLETED_VERIFIED = "completed_verified"
     FAILED = "failed"
+    FAILED_UNRECOVERABLE = "failed_unrecoverable"
+
+
+# Valid state transitions. Key is current state, value is set of
+# allowed next states. Any transition not in this map is rejected.
+VALID_TRANSITIONS: dict[TaskState, set[TaskState]] = {
+    TaskState.CREATED: {
+        TaskState.CLAIMED_BY_AGENT,
+        TaskState.IN_PROGRESS,  # v1 compat: direct to in_progress
+        TaskState.FAILED,
+    },
+    TaskState.CLAIMED_BY_AGENT: {
+        TaskState.IN_PROGRESS,
+        TaskState.FAILED,
+    },
+    TaskState.IN_PROGRESS: {
+        TaskState.COMPLETED,
+        TaskState.FAILED,
+        TaskState.STUCK,
+    },
+    TaskState.STUCK: {
+        TaskState.RESCHEDULED,
+        TaskState.FAILED_UNRECOVERABLE,
+    },
+    TaskState.RESCHEDULED: {
+        TaskState.CLAIMED_BY_AGENT,
+        TaskState.FAILED_UNRECOVERABLE,
+    },
+    TaskState.COMPLETED: {
+        TaskState.COMPLETED_VERIFIED,
+        TaskState.FAILED,  # verification rejected
+    },
+    TaskState.COMPLETED_VERIFIED: set(),  # terminal
+    TaskState.FAILED: {
+        TaskState.RESCHEDULED,  # retry via takeover
+        TaskState.FAILED_UNRECOVERABLE,
+    },
+    TaskState.FAILED_UNRECOVERABLE: set(),  # terminal
+}
+
+
+class InvalidTransition(Exception):
+    """Raised when a task state transition is not valid."""
+
+    def __init__(self, task_id: UUID, current: TaskState, target: TaskState):
+        self.task_id = task_id
+        self.current = current
+        self.target = target
+        super().__init__(
+            f"Invalid transition for task {task_id}: "
+            f"{current.value} -> {target.value}"
+        )
+
+
+def validate_transition(current: TaskState, target: TaskState) -> bool:
+    """Check whether a state transition is valid."""
+    allowed = VALID_TRANSITIONS.get(current, set())
+    return target in allowed
 
 
 class CostProfile(BaseModel):
@@ -72,7 +148,11 @@ class CostProfile(BaseModel):
 
 
 class Agent(BaseModel):
-    """A registered agent. v1 has one: engagement-agent-v1."""
+    """A registered agent in the agent registry.
+
+    v1 has one entry: engagement-agent-v1.
+    v2 adds entries without schema change.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -85,7 +165,7 @@ class Agent(BaseModel):
 
 
 class Task(BaseModel):
-    """A dispatched task. Every dispatch produces a row in the tasks table."""
+    """A dispatched task with v2 lifecycle fields."""
 
     task_id: UUID
     owner_agent_id: str
@@ -94,14 +174,19 @@ class Task(BaseModel):
     budget_cents: int = Field(ge=0)
     created_at: datetime
     updated_at: datetime
+    last_heartbeat_at: datetime | None = None
+    heartbeat_interval_s: int = 30
+    previous_owner_id: str | None = None
+    takeover_count: int = 0
+    stuck_reason: str | None = None
 
 
 class AuditSubstrateFields(BaseModel):
-    """Substrate fields added to audit_entries in migration 002.
+    """Substrate fields added to audit_entries by migration 003.
 
-    Populated on every audit write. agent_id and tempo are required.
-    task_id and cost fields are populated when applicable (a model call
-    has cost fields; a pure routing decision does not).
+    Populated on every audit write. In v1, agent_id and tempo are always
+    the engagement agent constants. task_id and cost fields are populated
+    when a model call occurs (a pure routing decision may omit cost).
     """
 
     model_config = ConfigDict(frozen=True)
@@ -117,9 +202,12 @@ class AuditSubstrateFields(BaseModel):
     session_rolling_cost_cents: Optional[Decimal] = Field(default=None, ge=0)
 
 
-# v1 sentinel constants. When v2 registers more agents these become
-# lookup calls against the agents table. Keeping them here now means
-# v1 call sites already speak the language of multi-agent dispatch.
+# -------------------------------------------------------------------
+# v1 constants
+# -------------------------------------------------------------------
+
 V1_ENGAGEMENT_AGENT_ID: str = "engagement-agent-v1"
 V1_ENGAGEMENT_AGENT_TEMPO: AgentTempo = AgentTempo.FAST
 V1_DEFAULT_BUDGET_CENTS: int = 100  # $1.00 per-turn default
+V2_DEFAULT_HEARTBEAT_INTERVAL_S: int = 30
+V2_STUCK_THRESHOLD_MULTIPLIER: float = 3.0  # stuck if no heartbeat for 3x interval
