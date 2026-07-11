@@ -1,83 +1,109 @@
 # Keystone Engage
 
-Keystone Engage extends the [Keystone Applied Intelligence](https://getkeystone.ai) platform into governed conversational agents for regulated customer interaction. It shares the audit chain, fail-closed contract, and eval methodology of keystone-core. Tool exposure is via Model Context Protocol (MCP); observability emits OpenTelemetry GenAI semantic conventions. The forthcoming baseline will be published as `keystone-engage/agent-v1` alongside the existing `keystone-core/retrieval-v1` and `keystone-core/agent-v1` evals.
+Governed conversational agents for regulated customer interaction.
 
-## What this is
+Keystone Engage extends the Keystone Applied Intelligence platform into multi-agent systems for environments where what the AI says or does can carry compliance, legal, or operational consequences.
 
-A governed conversational agent for regulated customer interaction: multi-step engagement journeys with a behavioral content library, severity-tier HITL routing, per-step evidence gating, HMAC action audit chain, and tool authorization as a hard architectural layer.
+This is not a general-purpose chatbot. It is a governed agent system built for situations like collections, hardship programs, complaint handling, regulated service workflows, and other interactions where escalation, authorization, evidence, and auditability are first-class requirements.
 
-Every design choice traces to a pre-LLM contact center AI pattern modernized for the LLM substrate:
+## What it does
 
-| Keystone Engage pattern | Contact center heritage |
-|---|---|
-| Severity-tier HITL routing | Bot-to-human escalation with formal severity classification |
-| Per-step evidence gating | Frame-based dialog slot validation |
-| HMAC action audit chain | Contact center compliance logging |
-| Fail-closed at retrieval | Confidence threshold escalation in bot deployments |
-| Published failing run alongside passing run | Contact center quality management |
-| Behavioral content library | Versioned response templates |
-| Agent-aware authorization | Per-engine permission scoping in multi-engine contact centers |
+A customer message does not go straight to a language model.
+
+Keystone Engage applies structural controls before, during, and after generation:
+
+- **Empathy gate** checks for distress signals and ensures the response acknowledges them appropriately.
+- **Escalation gate** checks for crisis signals, legal threats, discrimination complaints, regulatory complaints, and supervisor requests, then routes to a human at the correct severity tier.
+- **Intent gate** checks whether the request is actually in scope.
+- **Engagement agent** retrieves from approved content and generates a governed response through a local model.
+- **Budget agent** wraps execution with cost checks and accounting.
+- **Monitor agent** reviews activity asynchronously for quality and oversight.
+
+The result is a multi-agent pipeline where conversational behavior is constrained by policy, evidence, and review mechanics instead of relying on prompt instructions alone.
+
+## Why it exists
+
+Modern agent systems are often built as if policy, escalation, and audit can be added later.
+
+Regulated environments do not work that way.
+
+Keystone Engage starts from an older operational discipline that enterprise contact centers had to develop years before LLMs: severity-tier escalation, per-step validation, compliance logging, explicit routing, and refusal under uncertainty. Engage rebuilds that discipline for the LLM substrate.
+
+## Platform role
+
+Keystone Engage is one extension in the broader Keystone platform:
+
+- **Engage** proves governed conversational AI in the contact-center style domain.
+- **Counsel** proves authorization-first retrieval for legal and financial content.
+- **Verify** proves the evaluation methodology as a reusable tool.
+
+Engage shares the Keystone substrate for agent identity, task lifecycle, audit chain format, dispatch abstraction, and evaluation lineage.
+
+## Core architectural properties
+
+These are structural properties, not prompt suggestions:
+
+- governed multi-agent orchestration,
+- severity-tier human-in-the-loop routing,
+- per-step evidence gating,
+- tool authorization as a hard boundary,
+- hash-chained tamper-evident audit trails,
+- fail-closed behavior when evidence is insufficient,
+- local-first deployment with no external API dependency for core inference.
 
 ## Multi-agent substrate
 
-The schema is designed for multi-agent orchestration from day one. v1 populates one agent (`engagement-agent-v1`). v2 adds agents without schema migration.
+The schema is designed for multi-agent orchestration from day one.
 
-Four substrate dimensions are first-class across every audit entry, every OTel span, and every dispatch call:
+Each agent is registered with identity, role, tempo, and cost profile. Work is tracked through a task lifecycle instead of ad hoc function calls. Events are published for asynchronous monitoring and takeover. Dispatch is abstracted so the same orchestration surface can target local or remote agents.
 
-- **Agent identity**: which agent handled the interaction (agent registry with role and tempo)
-- **Tempo**: at what time horizon the agent operates (fast/medium/slow/deferred)
-- **Task state**: lifecycle of each dispatch (created/in_progress/completed/failed)
-- **Cost**: token consumption, latency, and dollar cost per operation with session rolling totals
+This makes the system extensible by adding agents, not by rewriting orchestration.
 
-See [docs/day-one-substrate-package.md](docs/day-one-substrate-package.md) for the rationale and [docs/MIGRATION.md](docs/MIGRATION.md) for the OPA authorization migration path.
+## Observability and tooling
 
-## Architecture
+Keystone Engage exposes tools through the Model Context Protocol (MCP), which standardizes how LLMs invoke external tools.[web:100][web:102]
 
-Keystone Engage runs as agent processes on the control plane, with frame-based dialog state held in PostgreSQL, severity-tier HITL routing logic in the orchestrator, and tool authorization checked before any tool call fires. Inference calls go to the inference plane over HTTP (OpenAI-compatible contract). Conversation logs are hash-chained to the audit ledger.
+Observability follows OpenTelemetry GenAI semantic conventions so model calls, tool calls, token usage, and agent behavior can be traced using a shared telemetry vocabulary.[web:92][web:94][web:98]
 
-The orchestrator dispatches through an A2A-compatible interface: `dispatch(agent_id, task_payload, tempo_expectation, priority, budget_cents)`. In v1 this is an in-process call to a single agent. The interface shape supports remote dispatch to multiple agents without changing call sites.
+## Current eval status
 
-See [docs/architecture.md](docs/architecture.md) for the full design and [docs/relation-to-keystone-core.md](docs/relation-to-keystone-core.md) for how Engage extends the platform.
+The current eval arc is preserved publicly rather than overwritten.
 
-## Stack
+Published and in-progress results show:
 
-- Python 3.11+, uv
-- FastAPI, Pydantic
-- PostgreSQL 16 + pgvector (AnchorNode)
-- qwen2.5:7b-instruct via Ollama (ZenithForge, OpenAI-compatible HTTP)
+- failing runs preserved alongside passing runs,
+- adversarial discovery used to expand the eval set,
+- governance controls evaluated as system behavior rather than described as intentions.
+
+This follows the same Keystone discipline used elsewhere in the platform: claims are backed by eval artifacts, not presentation copy.
+
+## Current stack
+
+- Python 3.11+
+- FastAPI
+- PostgreSQL 16 + pgvector
+- Ollama for local inference
 - MCP for tool exposure
-- OpenTelemetry GenAI semantic conventions (including substrate attributes)
-- Docker Compose (deployment)
+- OpenTelemetry GenAI semantic conventions
+- Docker Compose
 
-## Quick start
+## Repo goals
 
-```bash
-# Install dependencies
-uv sync
+This repository exists to prove that governed conversational AI can be implemented as infrastructure, not as prompt craft.
 
-# Run the API server
-make run
+Specifically, it aims to show that:
 
-# Run tests
-make test
+- escalation can be architectural,
+- authorization can be enforced before action,
+- evidence gating can constrain generation,
+- auditability can survive multi-agent execution,
+- evaluation can surface real failures before deployment.
 
-# Run eval suite
-make eval
-```
+## Relation to the rest of Keystone
 
-## Current eval state
-
-60 eval cases across 10 categories at 100% pass rate. Eval arc from 80% to 100% preserved across 7 commits. Categories: escalation detection (crisis, supervisor, legal, discrimination, regulatory), intent classification (creative, general knowledge, entertainment), RAG grounding, fail-closed behavior.
-
-Target: 100+ cases before `keystone-engage/agent-v1` publishes, with additional categories for tool authorization, audit chain integrity, cost reporting accuracy, and fairness across protected attributes.
-
-## Eval lineage
-
-This repo will publish `keystone-engage/agent-v1` as the baseline eval. The eval methodology follows keystone-core: every failing run is preserved alongside the passing run, the eval set grows from adversarial discovery, and results are hash-chained to the audit ledger.
-
-Published keystone-core evals for reference:
-- `keystone-core/retrieval-v1`: P@1=0.75, MRR=0.79, 8/8 adversarial ACL probes blocked
-- `keystone-core/agent-v1`: 186 cases, 12 categories, 558 executions, 0 failures
+- [`keystone-counsel`](https://github.com/getkeystone/keystone-counsel) applies the same discipline to regulated retrieval.
+- [`keystone-verify`](https://github.com/getkeystone/keystone-verify) extracts the evaluation methodology into a standalone tool.
+- [`keystone-kdat`](https://github.com/getkeystone/keystone-kdat) tracks evaluation lineage and proof artifacts.
 
 ## License
 
