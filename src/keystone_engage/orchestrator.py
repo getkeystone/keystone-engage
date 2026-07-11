@@ -1,11 +1,16 @@
 """Keystone Engage orchestrator.
 
-The control-plane service. Pre-RAG pipeline: escalation detection then
-intent classification. Both bypass the LLM entirely when triggered.
+The control-plane service. Pre-dispatch pipeline: escalation detection
+then intent classification. Both bypass the dispatcher entirely when
+triggered.
+
+A2A readiness: the orchestrator calls self.dispatcher.dispatch() instead
+of calling RAG directly. The dispatcher is a protocol: LocalDispatcher
+for in-process RAG, A2ADispatcher for remote agents. The orchestrator
+does not know which one it has.
 
 Substrate threading: every audit entry carries agent_id, tempo, task_id,
-and cost fields. v1 uses constants for agent and tempo. Cost is measured
-from the RAG response. Task lifecycle is created -> in_progress -> completed|failed.
+and cost fields. v1 uses constants. v2 populates from the dispatch result.
 """
 
 from __future__ import annotations
@@ -16,7 +21,11 @@ from decimal import Decimal
 
 from keystone_engage.audit import AuditChain
 from keystone_engage.auth import authorize_retrieval
-from keystone_engage.empathy import check_empathy
+from keystone_engage.dispatch import (
+    Dispatcher,
+    DispatchRequest,
+    LocalDispatcher,
+)
 from keystone_engage.escalation import check_escalation
 from keystone_engage.intent import check_intent
 from keystone_engage.models import (
@@ -26,7 +35,6 @@ from keystone_engage.models import (
     SeverityTier,
 )
 from keystone_engage.observability import agent_span, get_tracer, llm_span, record_token_usage
-from keystone_engage.rag import EngageRAG
 from keystone_engage.substrate.models import (
     AgentTempo,
     AuditSubstrateFields,
@@ -43,24 +51,23 @@ logger = logging.getLogger(__name__)
 class EngageOrchestrator:
     """Orchestrator for governed conversational engagement.
 
-    Pre-RAG pipeline order:
+    Pre-dispatch pipeline order:
     1. Task creation + audit open
     2. Authorization check (hard gate)
     3. Escalation detection (crisis, supervisor, legal, discrimination)
     4. Intent classification (creative, general knowledge, entertainment)
-    5. RAG retrieval + generation
-    6. Evidence gating + severity routing
-    7. Audit close with cost + task completion
+    5. Dispatch to agent (via Dispatcher protocol)
+    6. Audit close with cost + task completion
     """
 
     def __init__(
         self,
         audit: AuditChain | None = None,
-        rag: EngageRAG | None = None,
+        dispatcher: Dispatcher | None = None,
         task_store: TaskStore | None = None,
     ) -> None:
         self.audit = audit or AuditChain()
-        self.rag = rag or EngageRAG()
+        self.dispatcher = dispatcher
         self.task_store = task_store
         self.sessions: dict[str, DialogFrame] = {}
         self._session_costs: dict[str, Decimal] = {}
@@ -91,10 +98,6 @@ class EngageOrchestrator:
         latency_ms: int | None = None,
         session_rolling_cost_cents: Decimal | None = None,
     ) -> AuditSubstrateFields:
-        """Build substrate fields for an audit entry.
-
-        agent_id and tempo are v1 constants. Other fields vary per entry.
-        """
         return AuditSubstrateFields(
             agent_id=V1_ENGAGEMENT_AGENT_ID,
             tempo=V1_ENGAGEMENT_AGENT_TEMPO,
@@ -108,7 +111,6 @@ class EngageOrchestrator:
         )
 
     def _create_task(self, session_id: str, message: str) -> uuid.UUID | None:
-        """Create a task row if TaskStore is available."""
         if not self.task_store:
             return None
         return self.task_store.create_task(
@@ -118,7 +120,6 @@ class EngageOrchestrator:
         )
 
     def _complete_task(self, task_id: uuid.UUID | None, state: TaskState) -> None:
-        """Update task state if TaskStore is available."""
         if self.task_store and task_id:
             self.task_store.update_state(task_id, state)
 
@@ -170,7 +171,7 @@ class EngageOrchestrator:
                     audit_hash=opening.curr_hash,
                 )
 
-            # 3. Escalation detection (bypasses RAG entirely)
+            # 3. Escalation detection (bypasses dispatch entirely)
             escalation = check_escalation(request.message)
             if escalation.should_escalate:
                 self.audit.append(
@@ -196,7 +197,7 @@ class EngageOrchestrator:
                     audit_hash=opening.curr_hash,
                 )
 
-            # 4. Intent classification (bypasses RAG for off-topic)
+            # 4. Intent classification (bypasses dispatch for off-topic)
             intent = check_intent(request.message)
             if intent.is_off_topic:
                 self.audit.append(
@@ -220,83 +221,69 @@ class EngageOrchestrator:
                     audit_hash=opening.curr_hash,
                 )
 
-            # 4.5 Empathy detection (distress without concrete question)
-            empathy = check_empathy(request.message)
-            if empathy.is_distress:
-                self.audit.append(
-                    event_type="empathy.acknowledged",
-                    actor="orchestrator",
-                    payload={
-                        "session_id": request.session_id,
-                        "reason": empathy.reason,
-                    },
-                    substrate=self._make_substrate(task_id=task_id),
-                )
-                self._complete_task(task_id, TaskState.COMPLETED)
-                return EngageResponse(
-                    session_id=request.session_id,
-                    message=empathy.response,
-                    severity=SeverityTier.TIER_0,
-                    audit_hash=opening.curr_hash,
-                )
-
             # 5. Dialog frame state
             frame = self._get_or_create_frame(request.session_id)
 
-            # 6. RAG pipeline
-            rag_response = await self.rag.retrieve_and_generate(
-                query=request.message,
-                corpus_id="engage-default",
+            # 6. Dispatch to agent
+            if self.dispatcher is None:
+                self._complete_task(task_id, TaskState.FAILED)
+                return EngageResponse(
+                    session_id=request.session_id,
+                    message="No dispatcher configured.",
+                    severity=SeverityTier.TIER_2,
+                    audit_hash=opening.curr_hash,
+                )
+
+            dispatch_req = DispatchRequest(
+                agent_id=V1_ENGAGEMENT_AGENT_ID,
+                tempo_expectation=V1_ENGAGEMENT_AGENT_TEMPO,
+                priority=0,
+                budget_cents=V1_DEFAULT_BUDGET_CENTS,
+                task_id=task_id,
+                payload={
+                    "query": request.message,
+                    "corpus_id": "engage-default",
+                },
             )
 
-            # 7. Evidence gating + severity routing
-            if rag_response.fail_closed:
-                severity = SeverityTier.TIER_2
-                response_message = (
-                    "Unable to provide a confident response. "
-                    "This has been routed for human review."
-                )
-            else:
-                severity = SeverityTier.TIER_0
-                response_message = rag_response.answer
+            result = await self.dispatcher.dispatch(dispatch_req)
 
-            if rag_response.input_tokens > 0:
-                with llm_span(tracer, rag_response.model_used) as span:
+            if result.input_tokens > 0:
+                with llm_span(tracer, result.model_used) as span:
                     record_token_usage(
                         span,
-                        rag_response.input_tokens,
-                        rag_response.output_tokens,
+                        result.input_tokens,
+                        result.output_tokens,
                     )
-                    span.set_attribute("keystone.latency_ms", rag_response.latency_ms)
+                    span.set_attribute("keystone.latency_ms", result.latency_ms)
 
-            # Cost tracking: v1 local inference, cost is 0.
-            # Tokens and latency are the meaningful metrics.
-            # cost_cents becomes real when connecting to paid APIs.
-            cost_cents = Decimal("0")
-            rolling_cost = self._add_session_cost(request.session_id, cost_cents)
+            # Cost tracking
+            rolling_cost = self._add_session_cost(
+                request.session_id, result.cost_cents
+            )
 
-            # 8. Audit close with cost + task completion
+            # 7. Audit close with cost + task completion
             closing = self.audit.append(
                 event_type="response.generated",
                 actor="orchestrator",
                 payload={
                     "session_id": request.session_id,
-                    "severity": severity.value,
-                    "model_used": rag_response.model_used,
-                    "confidence": rag_response.confidence_score,
-                    "fail_closed": rag_response.fail_closed,
-                    "chunk_count": len(rag_response.retrieved_chunks),
-                    "input_tokens": rag_response.input_tokens,
-                    "output_tokens": rag_response.output_tokens,
-                    "latency_ms": round(rag_response.latency_ms, 1),
+                    "severity": result.severity.value,
+                    "model_used": result.model_used,
+                    "confidence": result.confidence_score,
+                    "fail_closed": result.fail_closed,
+                    "chunk_count": len(result.evidence),
+                    "input_tokens": result.input_tokens,
+                    "output_tokens": result.output_tokens,
+                    "latency_ms": round(result.latency_ms, 1),
                 },
                 substrate=self._make_substrate(
                     task_id=task_id,
-                    input_tokens=rag_response.input_tokens,
-                    output_tokens=rag_response.output_tokens,
-                    model_used=rag_response.model_used,
-                    cost_cents=cost_cents,
-                    latency_ms=round(rag_response.latency_ms),
+                    input_tokens=result.input_tokens,
+                    output_tokens=result.output_tokens,
+                    model_used=result.model_used,
+                    cost_cents=result.cost_cents,
+                    latency_ms=round(result.latency_ms),
                     session_rolling_cost_cents=rolling_cost,
                 ),
             )
@@ -305,17 +292,9 @@ class EngageOrchestrator:
 
             return EngageResponse(
                 session_id=request.session_id,
-                message=response_message,
-                severity=severity,
+                message=result.answer,
+                severity=result.severity,
                 frame=frame,
                 audit_hash=closing.curr_hash,
-                evidence=[
-                    {
-                        "chunk_id": c.chunk_id,
-                        "source": c.source_document,
-                        "section": c.section,
-                        "score": c.similarity_score,
-                    }
-                    for c in rag_response.retrieved_chunks
-                ],
+                evidence=result.evidence,
             )

@@ -18,6 +18,7 @@ from keystone_engage.config import get_settings
 from keystone_engage.corpus import load_corpus
 from keystone_engage.models import EngageRequest, EngageResponse, HealthResponse
 from keystone_engage.observability import setup_telemetry
+from keystone_engage.dispatch import LocalDispatcher
 from keystone_engage.orchestrator import EngageOrchestrator
 from keystone_engage.rag import EngageRAG
 from keystone_engage.vectorstore import InMemoryVectorStore
@@ -129,7 +130,8 @@ async def lifespan(app: FastAPI):
 
     rag = EngageRAG(vectorstore=vectorstore)
     await _load_and_index_corpus(rag, store_is_pg)
-    _orchestrator = EngageOrchestrator(audit=audit, rag=rag, task_store=task_store)
+    dispatcher = LocalDispatcher(rag=rag)
+    _orchestrator = EngageOrchestrator(audit=audit, dispatcher=dispatcher, task_store=task_store)
 
     logger.info("Keystone Engage v%s ready", __version__)
     yield
