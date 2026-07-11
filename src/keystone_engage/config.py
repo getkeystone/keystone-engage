@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 5
     confidence_threshold: float = 0.50
     env: str = "development"
+    multi_agent: bool = False  # True = coordinator pipeline, False = v1 orchestrator
     database_url: str = ""  # postgresql://user:pass@host:5432/db (empty = in-memory)
 
     model_config = {"env_prefix": "KEYSTONE_", "env_file": ".env", "extra": "ignore"}

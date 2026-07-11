@@ -107,6 +107,7 @@ class HealthResponse(BaseModel):
     version: str
     component: str = "keystone-engage"
     platform: str = "keystone"
+    pipeline: str = "v1"
 
 
 class EngageRequest(BaseModel):
