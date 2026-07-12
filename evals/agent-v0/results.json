@@ -177,7 +177,7 @@
       {
         "check": "cost-fields-populated",
         "passed": false,
-        "details": "DB verification failed: connection to server at \"100.70.20.65\", port 5432 failed: FATAL:  password authentication failed for user \"keystone\"\nconnection to server at \"100.70.20.65\", port 5432 failed: FATAL:  password authentication failed for user \"keystone\"\n"
+        "details": "DB verification failed: connection to server at \"[lab-host]\", port 5432 failed: FATAL:  password authentication failed for user \"keystone\"\nconnection to server at \"[lab-host]\", port 5432 failed: FATAL:  password authentication failed for user \"keystone\"\n"
       }
     ]
   },
