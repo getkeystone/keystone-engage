@@ -86,9 +86,9 @@ touching the fail-closed confidence gate.
 
 | Plane | Device | Role |
 |-------|--------|------|
-| Control | ForgePrime | FastAPI orchestrator |
-| Inference | ZenithForge | Ollama (qwen2.5:7b-instruct, nomic-embed-text) |
-| Data | AnchorNode | PostgreSQL 16 + pgvector, 35 chunks, HNSW indexing |
+| Control | Control-Plane | FastAPI orchestrator |
+| Inference | Inference-Plane | Ollama (qwen2.5:7b-instruct, nomic-embed-text) |
+| Data | Data-Plane | PostgreSQL 16 + pgvector, 35 chunks, HNSW indexing |
 
 ## Post-run checks
 

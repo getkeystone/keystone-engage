@@ -1,7 +1,7 @@
 """PostgreSQL + pgvector store for Keystone Engage.
 
 Same interface as InMemoryVectorStore. Embeddings persist across restarts.
-Connects to AnchorNode (data plane) for chunk storage and similarity search.
+Connects to Data-Plane (data plane) for chunk storage and similarity search.
 Falls back to InMemoryVectorStore if database is unavailable.
 """
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class PgVectorStore:
-    """pgvector-backed store on AnchorNode. Same interface as InMemoryVectorStore."""
+    """pgvector-backed store on Data-Plane. Same interface as InMemoryVectorStore."""
 
     def __init__(self, database_url: str, embedding_dim: int = 768) -> None:
         self._database_url = database_url
@@ -62,7 +62,7 @@ class PgVectorStore:
                         ON chunks USING hnsw (embedding vector_cosine_ops)
                         WITH (m = 16, ef_construction = 64)
                 """)
-        logger.info("PgVectorStore: table verified on AnchorNode")
+        logger.info("PgVectorStore: table verified on Data-Plane")
 
     @property
     def size(self) -> int:

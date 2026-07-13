@@ -9,3 +9,6 @@ build/
 data/audit/
 .env
 data/eval/results/
+
+# IP-protection: 100-case adversarial gold set stays local/private
+data/eval/cases.jsonl

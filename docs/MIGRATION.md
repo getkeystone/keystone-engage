@@ -38,7 +38,7 @@ A policy engine (OPA or Cedar) runs as a sidecar or service. The `authorize_tool
 
 2. **Write policies.** Translate the `PolicyStore` rules to Rego or Cedar policy files. Store in a `keystone-policy` Git repository with CI syntax checks. Policies reference `agent_identity` to scope tool permissions per agent.
 
-3. **Deploy engine.** Run OPA as a container on AnchorNode or ForgePrime. Configure bundle loading from the policy repo.
+3. **Deploy engine.** Run OPA as a container on Data-Plane or Control-Plane. Configure bundle loading from the policy repo.
 
 4. **Swap backend.** Replace the `PolicyStore` lookups in `auth.py` with HTTP calls to the policy engine. The `AuthorizationResult.decision_source` field changes from `"in-process"` to `"opa"`. The `AuthorizationResult.agent_identity` field is already populated.
 

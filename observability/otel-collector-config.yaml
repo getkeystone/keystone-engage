@@ -1,9 +1,9 @@
 # OpenTelemetry Collector configuration for Keystone Engage
-# Deployed on SolsticeNode (observability plane)
+# Deployed on Observability-Plane (observability plane)
 #
 # Receives traces from Keystone Engage services with GenAI semantic conventions.
 # Exports to local storage for development; production exports to the
-# SolsticeNode Prometheus/Grafana stack.
+# Observability-Plane Prometheus/Grafana stack.
 
 receivers:
   otlp:
@@ -23,9 +23,9 @@ exporters:
   logging:
     loglevel: info
 
-  # Production: uncomment and configure for SolsticeNode
-  # otlp/solstice:
-  #   endpoint: solsticenode.tailnet:4317
+  # Production: uncomment and configure for Observability-Plane
+  # otlp/remote:
+  #   endpoint: <otel-host>:4317
   #   tls:
   #     insecure: false
 

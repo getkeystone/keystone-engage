@@ -11,9 +11,9 @@
     "serving": "ollama"
   },
   "infrastructure": {
-    "control_plane": "ForgePrime (Tailscale [lab-host])",
-    "inference_plane": "ZenithForge (Tailscale [lab-host])",
-    "data_plane": "AnchorNode (Tailscale [lab-host], PostgreSQL 16 + pgvector)"
+    "control_plane": "Control-Plane (Tailscale [lab-host])",
+    "inference_plane": "Inference-Plane (Tailscale [lab-host])",
+    "data_plane": "Data-Plane (Tailscale [lab-host], PostgreSQL 16 + pgvector)"
   },
   "thresholds": {
     "confidence": 0.50,

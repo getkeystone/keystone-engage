@@ -1,7 +1,7 @@
 .PHONY: run test eval eval-run eval-seal eval-audit-dump lint fmt corpus-stats
 
-# Default eval target URL. Override: make eval-run BASE_URL=http://100.90.230.74:8100
-BASE_URL ?= http://100.90.230.74:8100
+# Default eval target URL. Override: make eval-run BASE_URL=http://<host>:8100
+BASE_URL ?= http://localhost:8100
 
 run:
 	uv run uvicorn keystone_engage.api:app --host 0.0.0.0 --port 8100 --reload
@@ -30,15 +30,16 @@ eval-seal:
 	@echo "Sealed to evals/$(VERSION)/results.json"
 	@echo "Next: update evals/$(VERSION)/run_metadata.json and evals/$(VERSION)/report.md"
 
-# Dump audit chain entries from AnchorNode for a specific time window.
+# Dump audit chain entries from the database for a specific time window.
 # Usage: make eval-audit-dump VERSION=agent-v1 AFTER="2026-07-08T02:00:00" BEFORE="2026-07-08T03:00:00"
-#   DB_URL defaults to KEYSTONE_DATABASE_URL from .env if set, else prompts for password.
+#   Set DB_HOST (defaults to localhost) and DB_URL/KEYSTONE_DATABASE_URL from .env.
+DB_HOST ?= localhost
 eval-audit-dump:
 	@test -n "$(VERSION)" || (echo "ERROR: VERSION required" && exit 1)
 	@test -n "$(AFTER)" || (echo "ERROR: AFTER required (ISO timestamp)" && exit 1)
 	@test -n "$(BEFORE)" || (echo "ERROR: BEFORE required (ISO timestamp)" && exit 1)
 	@mkdir -p evals/$(VERSION)
-	psql -h 100.70.20.65 -U keystone -d keystone_engage -t -A -c \
+	psql -h $(DB_HOST) -U keystone -d keystone_engage -t -A -c \
 		"SELECT json_agg(row_to_json(t)) FROM ( \
 			SELECT id, timestamp, event_type, actor, prev_hash, curr_hash, \
 				agent_id, tempo, task_id, input_tokens, output_tokens, \

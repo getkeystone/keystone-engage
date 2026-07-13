@@ -1,6 +1,6 @@
 """Integration tests for the EventBus.
 
-These tests require a live NATS server on TrustNode (100.71.252.101:4222).
+These tests require a live NATS server (set via NATS_URL env; defaults to localhost:4222).
 Skip with: pytest -m "not integration"
 """
 

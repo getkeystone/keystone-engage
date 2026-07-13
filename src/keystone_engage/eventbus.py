@@ -1,6 +1,6 @@
 """Event bus for Keystone Engage via NATS JetStream.
 
-Publishes task lifecycle events to NATS on TrustNode. Agents and
+Publishes task lifecycle events to NATS on Messaging-Plane. Agents and
 monitors subscribe to events they care about. The event bus is the
 backbone for tempo-heterogeneous dispatch: fast agents publish,
 slow monitors subscribe, and the bus bridges the tempo gap.
@@ -37,7 +37,7 @@ from nats.js.api import StreamConfig, RetentionPolicy
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_NATS_URL = "nats://100.71.252.101:4222"
+DEFAULT_NATS_URL = "nats://localhost:4222"
 STREAM_NAME = "KEYSTONE_TASKS"
 SUBJECT_PREFIX = "keystone.tasks"
 

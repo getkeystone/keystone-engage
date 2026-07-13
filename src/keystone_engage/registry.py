@@ -5,7 +5,7 @@ The coordinator queries this registry to decide which agents to invoke
 for a given request.
 
 v1: in-process registry (Python dict). Matches the agents table on
-AnchorNode. When the agent table becomes the source of truth (v2),
+Data-Plane. When the agent table becomes the source of truth (v2),
 this module becomes a cache layer with a refresh-from-DB path.
 
 Agent roles:

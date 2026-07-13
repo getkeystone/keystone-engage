@@ -2,12 +2,12 @@
 
 ## Position in the KAI_LAB planes
 
-Keystone Engage runs as agent processes on the **control plane** (ForgePrime), with:
+Keystone Engage runs as agent processes on the **control plane** (Control-Plane), with:
 
-- **Dialog state** held in the **data plane** (AnchorNode, PostgreSQL) as structured frame slots
-- **Inference** dispatched to the **inference plane** (ZenithForge, Ollama) over HTTP
+- **Dialog state** held in the **data plane** (Data-Plane, PostgreSQL) as structured frame slots
+- **Inference** dispatched to the **inference plane** (Inference-Plane, Ollama) over HTTP
 - **Audit records** hash-chained to the **data plane** and archived to the **storage plane** (DataHarbor)
-- **Observability** emitted to the **observability plane** (SolsticeNode) via OTel GenAI conventions
+- **Observability** emitted to the **observability plane** (Observability-Plane) via OTel GenAI conventions
 - **Tools** exposed via MCP on the control plane
 
 ## Design choices and contact center heritage

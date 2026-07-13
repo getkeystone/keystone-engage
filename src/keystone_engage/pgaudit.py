@@ -1,7 +1,7 @@
 """PostgreSQL-backed audit chain for Keystone Engage.
 
 Same interface as AuditChain (JSONL). Hash-chained, append-only, tamper-evident.
-Persists to AnchorNode. Falls back to JSONL if database is unavailable.
+Persists to Data-Plane. Falls back to JSONL if database is unavailable.
 
 Substrate columns (agent_id, tempo, task_id, cost fields) are written as
 dedicated columns for queryability. The payload column continues to hold the
@@ -31,7 +31,7 @@ class PgAuditChain:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
         self._last_hash = self._read_last_hash()
-        logger.info("PgAuditChain: connected to AnchorNode")
+        logger.info("PgAuditChain: connected to Data-Plane")
 
     @contextmanager
     def _conn(self) -> Generator:

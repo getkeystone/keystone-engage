@@ -54,7 +54,7 @@ def _create_vectorstore():
         try:
             from keystone_engage.pgvectorstore import PgVectorStore
             store = PgVectorStore(settings.database_url)
-            logger.info("Using PgVectorStore on AnchorNode")
+            logger.info("Using PgVectorStore on Data-Plane")
             return store
         except Exception as e:
             logger.warning("PgVectorStore failed (%s), falling back to in-memory", e)
@@ -68,7 +68,7 @@ def _create_audit():
         try:
             from keystone_engage.pgaudit import PgAuditChain
             audit = PgAuditChain(settings.database_url)
-            logger.info("Using PgAuditChain on AnchorNode")
+            logger.info("Using PgAuditChain on Data-Plane")
             return audit
         except Exception as e:
             logger.warning("PgAuditChain failed (%s), falling back to JSONL", e)
@@ -82,7 +82,7 @@ def _create_task_store():
         try:
             from keystone_engage.substrate.store import TaskStore
             store = TaskStore(settings.database_url)
-            logger.info("Using TaskStore on AnchorNode")
+            logger.info("Using TaskStore on Data-Plane")
             return store
         except Exception as e:
             logger.warning("TaskStore failed (%s), tasks will not be persisted", e)
@@ -95,7 +95,7 @@ async def _create_event_bus():
         from keystone_engage.eventbus import EventBus
         bus = EventBus()
         await bus.connect()
-        logger.info("EventBus connected to TrustNode")
+        logger.info("EventBus connected to Messaging-Plane")
         return bus
     except Exception as e:
         logger.warning("EventBus failed (%s), coordinator will run without events", e)

@@ -1,5 +1,5 @@
 -- Keystone Engage: audit entries in PostgreSQL
--- Run against keystone_engage database on AnchorNode
+-- Run against keystone_engage database on Data-Plane
 
 CREATE TABLE IF NOT EXISTS audit_entries (
     id SERIAL PRIMARY KEY,

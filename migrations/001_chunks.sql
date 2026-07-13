@@ -1,5 +1,5 @@
 -- Keystone Engage: chunk storage with pgvector
--- Run against keystone_engage database on AnchorNode
+-- Run against keystone_engage database on Data-Plane
 
 CREATE EXTENSION IF NOT EXISTS vector;
 

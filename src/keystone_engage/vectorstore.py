@@ -1,7 +1,7 @@
 """In-memory vector store for Keystone Engage.
 
 Pure Python cosine similarity over embeddings. Sufficient for corpora under
-200 chunks. Swappable to pgvector on AnchorNode when the data plane is wired;
+200 chunks. Swappable to pgvector on Data-Plane when the data plane is wired;
 the query interface stays the same.
 """
 
@@ -46,7 +46,7 @@ class InMemoryVectorStore:
     """Vector store backed by Python lists. No external dependencies.
 
     Interface matches what a pgvector-backed store would expose.
-    When AnchorNode is ready, swap this implementation without changing callers.
+    When Data-Plane is ready, swap this implementation without changing callers.
     """
 
     def __init__(self) -> None:

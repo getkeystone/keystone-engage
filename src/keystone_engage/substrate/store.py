@@ -1,7 +1,7 @@
 """Task lifecycle store for Keystone Engage.
 
 v2 adds validated transitions, heartbeat tracking, stuck detection,
-and takeover protocol. Persists to AnchorNode (PostgreSQL).
+and takeover protocol. Persists to Data-Plane (PostgreSQL).
 
 Contact center heritage:
   create_task     = call enters queue
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 class TaskStore:
-    """Task lifecycle backed by PostgreSQL on AnchorNode.
+    """Task lifecycle backed by PostgreSQL on Data-Plane.
 
     v2 methods:
       claim_task()      : agent claims a created task
@@ -52,7 +52,7 @@ class TaskStore:
 
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
-        logger.info("TaskStore: connected to AnchorNode")
+        logger.info("TaskStore: connected to Data-Plane")
 
     @contextmanager
     def _conn(self) -> Generator:

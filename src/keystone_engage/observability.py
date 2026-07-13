@@ -28,7 +28,7 @@ _TRACER_NAME = "keystone-engage"
 def setup_telemetry(app: Any | None = None) -> trace.Tracer:
     """Initialize OTel with GenAI semantic conventions.
 
-    Exports to OTLP endpoint (SolsticeNode) if configured,
+    Exports to OTLP endpoint (Observability-Plane) if configured,
     falls back to console for local development.
     ConsoleSpanExporter is skipped under pytest to avoid
     teardown-ordering noise (ValueError on closed stdout).
