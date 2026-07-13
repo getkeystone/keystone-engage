@@ -1,12 +1,12 @@
 # Keystone Engage Architecture
 
-## Position in the KAI_LAB planes
+## Position in the deployment planes
 
 Keystone Engage runs as agent processes on the **control plane** (Control-Plane), with:
 
 - **Dialog state** held in the **data plane** (Data-Plane, PostgreSQL) as structured frame slots
 - **Inference** dispatched to the **inference plane** (Inference-Plane, Ollama) over HTTP
-- **Audit records** hash-chained to the **data plane** and archived to the **storage plane** (DataHarbor)
+- **Audit records** hash-chained to the **data plane** and archived to the **storage plane**
 - **Observability** emitted to the **observability plane** (Observability-Plane) via OTel GenAI conventions
 - **Tools** exposed via MCP on the control plane
 

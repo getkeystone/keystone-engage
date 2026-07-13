@@ -23,7 +23,7 @@ class AuditChain:
     """Append-only hash-chained audit ledger.
 
     Writes JSONL to a local file. In production, writes to Data-Plane (PostgreSQL)
-    and archives to DataHarbor. The chain is the same format used by keystone-core.
+    and archives to the storage plane. The chain is the same format used by keystone-core.
 
     The substrate parameter is accepted for interface compatibility with PgAuditChain
     but is not written to dedicated columns (JSONL has no columns). The orchestrator
