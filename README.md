@@ -71,10 +71,10 @@ The 100/100 eval was sealed at commit `d199382`, where the served orchestrator r
 
 ## Related repos
 
-- [keystone-ledger](https://github.com/getkeystone/keystone-ledger): eval lineage and public proof artifacts. Scheduled to become public within 24 hours.
+- [keystone-ledger](https://github.com/getkeystone/keystone-ledger): eval lineage and public proof artifacts.
 - [keystone-verify](https://github.com/getkeystone/keystone-verify): the evaluation framework as a standalone tool. Public.
-- keystone-counsel: authorization-first retrieval for regulated content. Private repo.
-- keystone-gov: governed RAG reference implementation. Private repo, publication planned.
+- [keystone-counsel](https://github.com/getkeystone/keystone-counsel): authorization-first retrieval for regulated content.
+- [keystone-gov](https://github.com/getkeystone/keystone-gov): governed RAG reference implementation.
 
 ## License
 
